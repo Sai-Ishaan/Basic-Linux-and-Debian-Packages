@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Network and CPU Traffic Monitoring</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            height: 100vh;
+        }
+        .plot {
+            width: 80%;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="plot">
+            <h2>CPU Usage</h2>
+            <div id="cpu_plot"></div>
+        </div>
+        <div class="plot">
+            <h2>Network Traffic</h2>
+            <div id="network_plot"></div>
+        </div>
+    </div>
+
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        var cpu_data = {
+            x: [],
+            y: [],
+            type: 'line'
+        };
+
+        var network_data = [
+            {
+                x: [],
+                y: [],
+                name: 'Inbound',
+                type: 'line'
+            },
+            {
+                x: [],
+                y: [],
+                name: 'Outbound',
+                type: 'line'
+            }
+        ];
+
+        Plotly.newPlot('cpu_plot', [cpu_data]);
+        Plotly.newPlot('network_plot', network_data);
+
+        socket.on('update_data', function(data) {
+            var currentTime = new Date().toLocaleTimeString();
+
+            // Update CPU plot
+            cpu_data.x.push(currentTime);
+            cpu_data.y.push(data.cpu);
+            Plotly.update('cpu_plot', {x: [cpu_data.x], y: [cpu_data.y]});
+
+            // Update Network plot
+            network_data[0].x.push(currentTime);
+            network_data[0].y.push(data.network_in);
+            network_data[1].x.push(currentTime);
+            network_data[1].y.push(data.network_out);
+            Plotly.update('network_plot', {
+                x: [network_data[0].x, network_data[1].x],
+                y: [network_data[0].y, network_data[1].y]
+            });
+
+            // Limit data points to keep the plots manageable
+            if (cpu_data.x.length > 30) {
+                cpu_data.x.shift();
+                cpu_data.y.shift();
+                network_data[0].x.shift();
+                network_data[0].y.shift();
+                network_data[1].x.shift();
+                network_data[1].y.shift();
+            }
+        });
+    </script>
+</body>
+</html>
+
